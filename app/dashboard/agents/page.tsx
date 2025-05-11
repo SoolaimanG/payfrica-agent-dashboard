@@ -1,31 +1,25 @@
-"use client";
-
-import { useState } from "react";
 import Image from "next/image";
 import { ArrowLeft, Bell, ArrowDown, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
 
 export default function Page() {
-  const [activeTab, setActiveTab] = useState("overview");
-
   return (
     <div className="min-h-screen bg-[#1a1b1e] text-white">
       {/* Header */}
       <header className="bg-[#5B42F3] px-4 py-6 md:py-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-6">
-            <button className="p-2 rounded-full hover:bg-[#4835c4] transition">
+            <Button className="p-2 rounded-full hover:bg-[#4835c4] transition">
               <ArrowLeft className="w-6 h-6" />
-            </button>
+            </Button>
             <h1 className="text-xl font-medium absolute left-1/2 transform -translate-x-1/2 md:static md:translate-x-0 md:text-2xl">
               Payfrica Agent
             </h1>
-            <button className="p-2 rounded-full hover:bg-[#4835c4] transition">
+            <Button className="p-2 rounded-full hover:bg-[#4835c4] transition">
               <Bell className="w-6 h-6" />
-            </button>
+            </Button>
           </div>
 
           <div className="text-center">

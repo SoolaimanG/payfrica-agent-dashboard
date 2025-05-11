@@ -1,39 +1,4 @@
-import { IAgent, ITransaction } from "@/types";
-
-const allAgents: IAgent[] = [
-  {
-    time: "09:00am",
-    name: "John Doe",
-    token: "30 SUI",
-    agent: "Agent 404",
-    status: "active",
-    actions: ["delete", "deactivate"],
-  },
-  {
-    time: "10:30am",
-    name: "Jane Smith",
-    token: "50 SUI",
-    agent: "Agent 505",
-    status: "inactive",
-    actions: ["activate", "delete"],
-  },
-  {
-    time: "12:00pm",
-    name: "Mike Johnson",
-    token: "20 SUI",
-    agent: "Agent 606",
-    status: "active",
-    actions: ["delete", "deactivate"],
-  },
-  {
-    time: "01:45pm",
-    name: "Emily Clark",
-    token: "40 SUI",
-    agent: "Agent 707",
-    status: "suspended",
-    actions: ["reactivate", "delete"],
-  },
-];
+import { ITransaction } from "@/types";
 
 const allTransactions: ITransaction[] = [
   {
@@ -44,6 +9,7 @@ const allTransactions: ITransaction[] = [
     status: "pending",
     actions: ["approve", "decline"],
     isApprove: false,
+    outputAmount: 0,
   },
   {
     id: "txn_002",
@@ -53,6 +19,7 @@ const allTransactions: ITransaction[] = [
     status: "approved",
     actions: ["approve", "decline"],
     isApprove: false,
+    outputAmount: 0,
   },
   {
     id: "txn_003",
@@ -71,6 +38,7 @@ const allTransactions: ITransaction[] = [
     status: "pending",
     actions: ["approve", "decline"],
     isApprove: true,
+    outputAmount: 0,
   },
   {
     id: "txn_005",
@@ -89,7 +57,11 @@ const allTransactions: ITransaction[] = [
     status: "pending",
     actions: ["approve", "decline"],
     isApprove: true,
+    outputAmount: 0,
   },
 ];
 
-export { allTransactions, allAgents };
+const AGENTID =
+  "0x16526f26f4117e2f075960edadd9d744b07390af5451a640319a3ba04f09b79a";
+
+export { allTransactions, AGENTID };

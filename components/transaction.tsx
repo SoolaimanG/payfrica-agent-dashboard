@@ -10,7 +10,9 @@ const Transaction: FC<ITransaction> = ({ ...transaction }) => {
       <TableCell className="font-medium">{transaction.time}</TableCell>
       <TableCell className="font-medium">{transaction.id}</TableCell>
       <TableCell className="font-medium">{transaction.amount} SUI</TableCell>
-      <TableCell className="font-medium">{transaction.agent}</TableCell>
+      {Boolean(transaction.outputAmount) && (
+        <TableCell className="font-medium">{transaction.agent}</TableCell>
+      )}
       <TableCell className="font-medium capitalize">
         {transaction.status}
       </TableCell>
