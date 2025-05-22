@@ -2,16 +2,20 @@ import React, { FC } from "react";
 import { TableCell, TableRow } from "./ui/table";
 import { ITransaction } from "@/types";
 import { Button } from "./ui/button";
-import { cn } from "@/lib/utils";
+import { cn, payfrica } from "@/lib/utils";
 
 const Transaction: FC<ITransaction> = ({ ...transaction }) => {
   return (
     <TableRow className="hover:bg-gray-200 h-14">
       <TableCell className="font-medium">{transaction.time}</TableCell>
-      <TableCell className="font-medium">{transaction.id}</TableCell>
+      <TableCell className="font-medium">
+        {payfrica.truncateString(transaction.id)}
+      </TableCell>
       <TableCell className="font-medium">{transaction.amount} SUI</TableCell>
       {Boolean(transaction.outputAmount) && (
-        <TableCell className="font-medium">{transaction.agent}</TableCell>
+        <TableCell className="font-medium">
+          {payfrica.truncateString(transaction.agent)}
+        </TableCell>
       )}
       <TableCell className="font-medium capitalize">
         {transaction.status}

@@ -812,55 +812,6 @@ const Page = () => {
                         >
                           {transaction.status}
                         </TableCell>
-
-                        {/*<TableCell className="space-x-2 font-medium">
-                          {transaction.status !== "PENDING" ? (
-                            <p
-                              className={cn(
-                                "capitalize text-destructive font-bold",
-                                transaction.status === "COMPLETED" &&
-                                  "text-green-600",
-                                transaction.status === "CANCELLED" &&
-                                  "text-destructive"
-                              )}
-                            >
-                              {transaction.status}
-                            </p>
-                          ) : (
-                            !isAdmin(wallet.address) && (
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  disabled={isPending}
-                                  onClick={() =>
-                                    approveOrDecline(
-                                      transaction.type === "deposit"
-                                        ? "approve_deposits"
-                                        : "approve_withdrawal"
-                                    )
-                                  }
-                                  className={cn(
-                                    "capitalize h-8 cursor-pointer",
-                                    "bg-[#0BF526] hover:bg-[#0BF526]/80"
-                                  )}
-                                >
-                                  APPROVE
-                                </Button>
-                                <Button
-                                  disabled={isPending}
-                                  onClick={() =>
-                                    approveOrDecline("cancel_deposits")
-                                  }
-                                  className={cn(
-                                    "capitalize h-8",
-                                    "bg-[#F5A70B] hover:bg-[#F5A70B]/80"
-                                  )}
-                                >
-                                  DECLINE
-                                </Button>
-                              </div>
-                            )
-                          )}
-                        </TableCell>*/}
                       </TableRow>
                     ))}
                   </TableBody>
