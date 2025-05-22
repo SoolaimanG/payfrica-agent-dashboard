@@ -3,7 +3,6 @@ import React, {
   FC,
   ReactNode,
   SetStateAction,
-  useEffect,
   useState,
 } from "react";
 import {
@@ -26,7 +25,7 @@ const ProcessTransactionModal: FC<{
   title?: string;
   transactionStatus?: ITransactionStatus;
   setTransactionStatus: Dispatch<SetStateAction<ITransactionStatus>>;
-}> = ({ title = "", transactionStatus = "pending", ...props }) => {
+}> = ({ transactionStatus = "pending", ...props }) => {
   const [open, setOpen] = useState(false);
 
   const pending = (
@@ -65,6 +64,7 @@ const ProcessTransactionModal: FC<{
     </div>
   );
 
+  //@ts-ignore
   const views: Record<ITransactionStatus, any> = {
     approved,
     pending,

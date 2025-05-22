@@ -44,7 +44,8 @@ export const ConnectWallet: FC<{
       }}
       onConnectSuccess={() => setOpen(false)}
     >
-      {props.children as any}
+      {/* @ts-ignore */}
+      {props.children}
     </ConnectModal>
   );
 };

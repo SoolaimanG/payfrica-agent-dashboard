@@ -13,23 +13,11 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import Image from "next/image";
-import { Button } from "./ui/button";
-import {
-  BadgeDollarSignIcon,
-  Home,
-  PowerOffIcon,
-  Settings2Icon,
-  User,
-  Users,
-} from "lucide-react";
+import { Home } from "lucide-react";
 import Link from "next/link";
-import { isAdmin } from "@/lib/utils";
 import { ConnectWallet } from "./connect-wallet";
-import { useWallet } from "@suiet/wallet-kit";
 
 export function AppSidebar() {
-  const { address = "" } = useWallet();
-
   const navLinks = [
     {
       url: "/dashboard/overview",

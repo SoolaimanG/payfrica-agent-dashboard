@@ -24,7 +24,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn, config, payfrica } from "@/lib/utils";
-import { PaginatedCoins } from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
 import { useWallet } from "@suiet/wallet-kit";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -127,7 +126,7 @@ const Page = () => {
       maxWithdrawal:
         Number(maxWithdrawLimit || pmaxWithdrawalLimit) / Math.pow(10, 6),
     });
-  }, [agentDetail, isOpen, payfricaAgentsDetail]);
+  }, [agentDetail?.id, isOpen, payfricaAgentsDetail?.id]);
 
   const handleChangeEvent = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -181,7 +180,7 @@ const Page = () => {
   const setWithdrawalAndDepositsLimits = async () => {
     startTransaction(true);
     try {
-      let tx = new Transaction();
+      const tx = new Transaction();
 
       if (
         Number(agentDetail?.maxDepositLimit) !== limits.maxDeposit ||
@@ -410,12 +409,6 @@ const Page = () => {
         const clientRes2 = await payfrica.client.getCoins({
           owner,
           coinType: "0x" + payfricaAgentsDetail?.suiCoinType,
-        });
-
-        console.log({
-          clientRes2,
-          a: payfricaAgentsDetail?.suiCoinType,
-          b: payfricaAgentsDetail?.baseCoinType,
         });
 
         const mergeRes2 = payfrica.handleMergeSplit(

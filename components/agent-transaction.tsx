@@ -36,11 +36,11 @@ export const AgentTransaction: FC<IAgentTransaction> = ({ ...transaction }) => {
         transaction: tx,
       });
 
-      //if (txResult) {
-      qc.invalidateQueries({
-        queryKey: ["all-transactions", wallet?.address],
-      });
-      //}
+      if (txResult) {
+        qc.invalidateQueries({
+          queryKey: ["all-transactions", wallet?.address],
+        });
+      }
     } catch (error) {
       console.log(error);
     } finally {

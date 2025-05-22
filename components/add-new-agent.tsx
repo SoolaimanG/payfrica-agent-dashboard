@@ -18,7 +18,7 @@ const AddNewAgent: FC<{ children: ReactNode }> = ({ children }) => {
       <DialogContent>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle children="Add Wallet Address" />
+            <DialogTitle>Add Wallet Address</DialogTitle>
           </DialogHeader>
           <div className="mt-3 space-y-2">
             <Label>Account Number</Label>

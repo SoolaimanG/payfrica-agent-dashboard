@@ -58,7 +58,7 @@ const Page = () => {
     enabled: Boolean(address && !connecting && !isAdmin(address)),
   });
 
-  const { data: agents = [], isLoading } = useQuery({
+  const { data: agents = [] } = useQuery({
     queryKey: ["all-agents"],
     queryFn: () => payfrica.getAllAgents(),
     enabled: isAdmin(address),
@@ -107,6 +107,9 @@ const Page = () => {
       const txResult = await signAndExecuteTransaction({
         transaction: tx,
       });
+
+      if (txResult) {
+      }
     } catch (error) {
       console.log(error);
     } finally {

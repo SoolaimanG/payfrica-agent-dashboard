@@ -5,7 +5,6 @@ import { DashboradNavBar } from "@/components/dashboard-navbar";
 import Header from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -29,7 +28,7 @@ const Page = () => {
   const [isPending, startTransaction] = useState(false);
   const [addr, setAddr] = useState("");
 
-  const { isLoading, data, error } = useQuery({
+  const {} = useQuery({
     queryKey: ["agents-request"],
     queryFn: () => payfrica.getPayfricaLiteAgentsRequest(address),
   });
@@ -80,6 +79,9 @@ const Page = () => {
       const txResult = await signAndExecuteTransaction({
         transaction: tx,
       });
+
+      if (txResult) {
+      }
     } catch (error) {
       console.log(error);
     } finally {

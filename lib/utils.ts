@@ -47,9 +47,10 @@ class Payfrica {
     this.client = new SuiClient({ url: rpcUrl });
   }
 
+  //@ts-ignore
   handleMergeSplit(tx: Transaction, coinObjects: any[], amount: bigint) {
     if (!coinObjects.length) throw new Error("No coins");
-    let primary = coinObjects[0].coinObjectId;
+    const primary = coinObjects[0].coinObjectId;
     if (coinObjects.length > 1) {
       const rest = coinObjects.slice(1).map((c) => c.coinObjectId);
       tx.mergeCoins(
@@ -150,8 +151,6 @@ class Payfrica {
     );
     return res.data;
   }
-
-  formatAmount(amount: number, currency: string) {}
 }
 
 export function splitTokenString(input: string) {
