@@ -144,12 +144,12 @@ const Page = () => {
     startTransaction(true);
     try {
       await payfrica.updateAgentAccountDetails(agentDetail?.id!, {
-        accountBank: agentAccount.bank,
-        accountName: agentAccount.name,
-        accountNumber: agentAccount.accountNumber,
+        accountBank: agentAccount.bank!,
+        accountName: agentAccount.name!,
+        accountNumber: agentAccount.accountNumber!,
       });
 
-      qc.invalidateQueries({ queryKey: ["agent-detail", id] });
+      qc.invalidateQueries({ queryKey: ["agent-detail", agentDetail?.id] });
     } catch (error) {
       console.log(error);
     } finally {
@@ -163,13 +163,11 @@ const Page = () => {
       await payfrica.updatePayfricaAgentAccountDetails(
         payfricaAgentsDetail?.id!,
         {
-          accountBank: agentAccount.bank,
-          accountName: agentAccount.name,
-          accountNumber: agentAccount.accountNumber,
+          accountBank: agentAccount.bank!,
+          accountName: agentAccount.name!,
+          accountNumber: agentAccount.accountNumber!,
         }
       );
-
-      qc.invalidateQueries({ queryKey: ["agent-detail", id] });
     } catch (error) {
       console.log(error);
     } finally {

@@ -17,7 +17,7 @@ const AddWalletAddress: FC<{ children: ReactNode }> = ({ children }) => {
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle children="Add Wallet Address" />
+          <DialogTitle>Add Wallet Address</DialogTitle>
         </DialogHeader>
         <div className="space-y-2 mt-5">
           <Label>Input Wallet Address</Label>
