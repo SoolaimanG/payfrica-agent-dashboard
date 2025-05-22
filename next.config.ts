@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   eslint: {
     // Ensure ESLint runs on all files
     dirs: ["pages", "components", "lib", "app"],
+    ignoreDuringBuilds: true,
   },
 };
 

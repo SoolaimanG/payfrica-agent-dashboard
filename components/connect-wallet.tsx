@@ -1,15 +1,15 @@
 "use client";
 
-import React, { FC, ReactNode, useState } from "react";
+import React, { FC, useState } from "react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import { Wallet2 } from "lucide-react";
 import { ConnectModal, useWallet } from "@suiet/wallet-kit";
 
 export const ConnectWallet: FC<{
-  children?: ReactNode;
+  children?: any;
   className?: string;
-}> = ({ ...props }) => {
+}> = (props) => {
   const [open, setOpen] = useState(false);
   const { connected, address, disconnect } = useWallet();
 
@@ -44,8 +44,7 @@ export const ConnectWallet: FC<{
       }}
       onConnectSuccess={() => setOpen(false)}
     >
-      {/* @ts-ignore */}
-      {props.children as ReactNode}
+      {props.children}
     </ConnectModal>
   );
 };

@@ -16,8 +16,8 @@ import { config, isAdmin, payfrica, splitTokenString } from "@/lib/utils";
 import { useWallet } from "@suiet/wallet-kit";
 import { useQuery } from "@tanstack/react-query";
 import React, { Fragment, useEffect, useState } from "react";
-import { AddAgent } from "../overview/page";
 import { Transaction as Trans } from "@mysten/sui/transactions";
+import { AddAgent } from "@/components/add-agent";
 
 const Page = () => {
   const { address = "", signAndExecuteTransaction } = useWallet();
