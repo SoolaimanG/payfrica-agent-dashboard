@@ -122,7 +122,8 @@ const Page = () => {
       if (type === "approve_deposits") {
         const coin = payfrica.handleMergeSplit(tx, coins?.data, BigInt(amount));
         //@ts-ignore
-        txObjects.push(coin);
+        txObjects[3] = coin;
+        txObjects.push(tx.object("0x6"));
       }
 
       tx.moveCall({
