@@ -1,9 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   typescript: {
-    ignoreBuildErrors: true,
+    // Don't ignore build errors as they help catch issues early
+    ignoreBuildErrors: false,
+  },
+  eslint: {
+    // Ensure ESLint runs on all files
+    dirs: ["pages", "components", "lib", "app"],
   },
 };
 

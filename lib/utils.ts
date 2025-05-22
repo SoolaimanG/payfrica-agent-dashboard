@@ -47,8 +47,11 @@ class Payfrica {
     this.client = new SuiClient({ url: rpcUrl });
   }
 
-  //@ts-ignore
-  handleMergeSplit(tx: Transaction, coinObjects: any[], amount: bigint) {
+  handleMergeSplit(
+    tx: Transaction,
+    coinObjects: { coinObjectId: string }[],
+    amount: bigint
+  ) {
     if (!coinObjects.length) throw new Error("No coins");
     const primary = coinObjects[0].coinObjectId;
     if (coinObjects.length > 1) {

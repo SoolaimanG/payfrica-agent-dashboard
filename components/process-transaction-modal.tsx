@@ -64,8 +64,7 @@ const ProcessTransactionModal: FC<{
     </div>
   );
 
-  //@ts-ignore
-  const views: Record<ITransactionStatus, any> = {
+  const views: Record<ITransactionStatus, ReactNode> = {
     approved,
     pending,
     declined,
