@@ -20,7 +20,7 @@ import { ConnectWallet } from "./connect-wallet";
 export function AppSidebar() {
   const navLinks = [
     {
-      url: "/dashboard/overview",
+      url: "/dashboard",
       title: "Dashboard",
       icon: Home,
       isHidden: false, // Show for all user,
