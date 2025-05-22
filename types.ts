@@ -100,4 +100,55 @@ export interface IAgent {
   minDepositLimit: number;
   createdAt: string;
   updatedAt: string;
+  baseBalance?: string;
+  baseCoinType?: string;
+  suiCoinType?: string;
+  suiCoinBalance?: string;
+}
+
+export interface IAgentConfig {
+  id: string;
+  addr: string;
+  accountName: string;
+  accountNumber: string;
+  accountBank: string;
+  baseBalance: string;
+  suiCoinBalance: string;
+  baseCoinType: string;
+  suiCoinType: string;
+  pendingWithdrawals: string[];
+  successfulWithdrawals: string[];
+  totalPendingWithdrawals: number;
+  totalSuccessfulWithdrawals: number;
+  totalPendingWithdrawalsAmount: string;
+  totalSuccessfulWithdrawalsAmount: string;
+  pendingDeposits: string[];
+  successfulDeposits: string[];
+  unsuccessfulDeposits: string[];
+  totalPendingDeposits: number;
+  totalSuccessfulDeposits: number;
+  totalUnsuccessfulDeposits: number;
+  totalPendingDepositsAmount: string;
+  totalSuccessfulDepositsAmount: string;
+  maxWithdrawLimit: string;
+  minWithdrawLimit: string;
+  maxDepositLimit: string;
+  minDepositLimit: string;
+}
+
+export interface IPayfricaAgentTransaction {
+  id: string;
+  inputAmount: string;
+  outputAmount: string;
+  conversionRate: string;
+  conversionRateScaleDecimal: number;
+  user: string;
+  agentId: string;
+  inputCoinType: string;
+  outputCoinType: string;
+  comment: string;
+  status: "Pending" | "Completed" | "Cancelled";
+  requestTime: string;
+  statusTime: string | null;
+  type: "deposit" | "withdrawal";
 }

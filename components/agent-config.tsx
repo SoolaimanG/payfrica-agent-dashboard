@@ -2,34 +2,34 @@
 
 import React, { FC } from "react";
 import { TableCell, TableRow } from "./ui/table";
-import { IAgent } from "@/types";
+import { IAgentConfig } from "@/types";
 import { cn, payfrica } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
 
-const Agent: FC<IAgent> = ({ ...agent }) => {
+const AgentConfig: FC<IAgentConfig> = ({ ...agent }) => {
   const r = useRouter();
   return (
     <TableRow
-      onClick={() => r.push(`/dashboard/agents/${agent.addr}/?type=payfrica`)}
+      onClick={() =>
+        r.push(`/dashboard/agents/${agent.addr}/?type=payfrica-lite`)
+      }
       className="hover:bg-gray-200 h-14"
     >
       <TableCell className="font-medium">
-        {format(agent.createdAt, "PPP")}
+        {agent.suiCoinType.split("::").pop()}
       </TableCell>
-      <TableCell className="font-medium">{agent.name}</TableCell>
+      <TableCell className="font-medium">{agent.accountName}</TableCell>
       <TableCell className="font-medium">
-        {payfrica.truncateString(agent.addr)}
+        {agent.baseCoinType.split("::").pop()}
       </TableCell>
 
       <TableCell className="font-medium">
-        {agent.coinType.split("::").pop()}
-      </TableCell>
-      <TableCell className="font-medium">
         {payfrica.truncateString(agent.id)}
       </TableCell>
-      <TableCell className="font-medium capitalize">Active</TableCell>
+      <TableCell className="font-medium">
+        {payfrica.truncateString(agent.addr)}
+      </TableCell>
       <TableCell className="space-x-2 font-medium">
         {/*{agent.status === "active" ? (
           <p className={cn("capitalize text-destructive font-bold")}>
@@ -69,4 +69,4 @@ const Agent: FC<IAgent> = ({ ...agent }) => {
   );
 };
 
-export default Agent;
+export default AgentConfig;

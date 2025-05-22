@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Sidebar,
   SidebarContent,
@@ -23,41 +25,26 @@ import {
 import Link from "next/link";
 import { isAdmin } from "@/lib/utils";
 import { ConnectWallet } from "./connect-wallet";
-
-const navLinks = [
-  {
-    url: "/dashboard/overview",
-    title: "Dashboard",
-    icon: Home,
-    isHidden: false, // Show for all user,
-  },
-  {
-    url: "/dashboard/payfrica-lite",
-    title: "Dashboard (LITE)",
-    icon: Home,
-    isHidden: false, // Show for all user,
-  },
-  {
-    url: "/dashboard/agents",
-    title: "Agents",
-    icon: Users,
-    isHidden: isAdmin("1"),
-  },
-  {
-    url: "/dashboard/transactions/",
-    title: "Transactions",
-    icon: BadgeDollarSignIcon,
-    isHidden: isAdmin("1"),
-  },
-  {
-    url: "/dashboard/settings/",
-    title: "Settings",
-    icon: Settings2Icon,
-    isHidden: isAdmin("1"),
-  },
-];
+import { useWallet } from "@suiet/wallet-kit";
 
 export function AppSidebar() {
+  const { address = "" } = useWallet();
+
+  const navLinks = [
+    {
+      url: "/dashboard/overview",
+      title: "Dashboard",
+      icon: Home,
+      isHidden: false, // Show for all user,
+    },
+    {
+      url: "/dashboard/payfrica-lite",
+      title: "Dashboard (LITE)",
+      icon: Home,
+      isHidden: false, // Show for all user,
+    },
+  ];
+
   return (
     <Sidebar>
       <SidebarHeader>

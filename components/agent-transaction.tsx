@@ -36,11 +36,11 @@ export const AgentTransaction: FC<IAgentTransaction> = ({ ...transaction }) => {
         transaction: tx,
       });
 
-      if (txResult) {
-        qc.invalidateQueries({
-          queryKey: ["all-transactions", wallet?.address],
-        });
-      }
+      //if (txResult) {
+      qc.invalidateQueries({
+        queryKey: ["all-transactions", wallet?.address],
+      });
+      //}
     } catch (error) {
       console.log(error);
     } finally {
@@ -88,11 +88,17 @@ export const AgentTransaction: FC<IAgentTransaction> = ({ ...transaction }) => {
             {transaction.status}
           </p>
         ) : (
-          isAdmin("1") && (
+          !isAdmin(wallet.address) && (
             <div className="flex items-center gap-2">
               <Button
                 disabled={isPending}
-                onClick={() => approveOrDecline()}
+                onClick={() =>
+                  approveOrDecline(
+                    transaction.type === "deposit"
+                      ? "approve_deposits"
+                      : "approve_withdrawal"
+                  )
+                }
                 className={cn(
                   "capitalize h-8 cursor-pointer",
                   "bg-[#0BF526] hover:bg-[#0BF526]/80"

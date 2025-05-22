@@ -25,6 +25,7 @@ const Header: FC<{
   };
   activeCards?: string[];
   showActiveAgents?: boolean;
+  suiTokenBalance?: number;
 }> = ({
   children,
   type = "payfrica",
@@ -81,13 +82,16 @@ const Header: FC<{
               color="red"
             />
           )}
-          {/*<OverviewCard
-            title="Swaps"
-            value="132"
-            completed={28}
-            icon={ArrowLeftRight}
-            color="cyan"
-          />*/}
+          {a.has("sui-token-balance") && (
+            <OverviewCard
+              title="Sui Token Balance"
+              value={props.suiTokenBalance + ""}
+              completed={0}
+              icon={Landmark}
+              color="green"
+            />
+          )}
+
           {type === "payfrica-lite" && (
             <OverviewCard
               title="USDC"

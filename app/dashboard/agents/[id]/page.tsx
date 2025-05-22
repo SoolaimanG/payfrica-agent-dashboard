@@ -18,16 +18,20 @@ import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
+  TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { config, payfrica } from "@/lib/utils";
+import { cn, config, payfrica } from "@/lib/utils";
+import { PaginatedCoins } from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
 import { useWallet } from "@suiet/wallet-kit";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, Eye, Minus, Plus } from "lucide-react";
-import { useParams } from "next/navigation";
+import { format } from "date-fns";
+import { Ban, Eye, Infinity, Minus, Plus } from "lucide-react";
+import Link from "next/link";
+import { useParams, useSearchParams } from "next/navigation";
 import React, { Fragment, useEffect, useState } from "react";
 
 const Page = () => {
@@ -36,14 +40,36 @@ const Page = () => {
   const qc = useQueryClient();
   const [isPending, startTransaction] = useState(false);
   const { address: owner = "", ...wallet } = useWallet();
+  const q = useSearchParams();
+
   const { isLoading, data: transactions = [] } = useQuery({
     queryKey: ["get-agent-transactions", id],
     queryFn: () => payfrica.getAllTransactions(id),
+    enabled: q.get("type") === "payfrica",
+  });
+  const [limits, setLimits] = useState({
+    maxDeposit: 0,
+    maxWithdrawal: 0,
+    minDeposit: 0,
+    minWithdrawal: 0,
+  });
+
+  const { data: payfriaAgentTransactions = [] } = useQuery({
+    queryKey: ["get-payfria-agent-transactions", id],
+    queryFn: () => payfrica.getPayfricaLiteAgentsRequest(id),
+    enabled: q.get("type") === "payfrica-lite",
   });
 
   const { data: agentDetail } = useQuery({
     queryKey: ["agent-detail", id],
     queryFn: () => payfrica.getAgentsDetails(id),
+    enabled: Boolean(q.get("type") === "payfrica"),
+  });
+
+  const { data: payfricaAgentsDetail } = useQuery({
+    queryKey: ["payfrica-agent-detail"],
+    queryFn: () => payfrica.getPayfricaLiteAgentDetail(id),
+    enabled: Boolean(q.get("type") === "payfrica-lite"),
   });
 
   const [agentAccount, setAgentAccount] = useState({
@@ -52,20 +78,67 @@ const Page = () => {
     bank: "",
     balance: 0,
     type: "inc",
+    baseCoinType: "",
+    suiCoinType: "",
+    suiBalance: 0,
+    type2: "inc",
   });
 
   useEffect(() => {
-    if (!agentDetail) return;
+    if (!(agentDetail || payfricaAgentsDetail)) return;
 
-    const { accountNumber, bank, name } = agentDetail;
+    const {
+      accountNumber,
+      bank,
+      name,
+      maxDepositLimit,
+      minDepositLimit,
+      maxWithdrawLimit,
+      minWithdrawLimit,
+    } = agentDetail || {};
 
-    setAgentAccount({ ...agentAccount, bank, accountNumber, name });
-  }, [agentDetail, isOpen]);
+    const {
+      accountBank: pAccountBank,
+      accountName: pAccountName,
+      accountNumber: pAccountNumber,
+      minDepositLimit: pminDepositLimit,
+      maxDepositLimit: pmaxDepositLimit,
+      maxWithdrawLimit: pmaxWithdrawalLimit,
+      minWithdrawLimit: pminWithdrawalLimit,
+    } = payfricaAgentsDetail || {};
+
+    setAgentAccount({
+      ...agentAccount,
+      bank: bank || pAccountBank || "",
+      accountNumber: accountNumber || pAccountNumber || "",
+      name: name || pAccountName || "",
+      balance:
+        Number(agentDetail?.balance || payfricaAgentsDetail?.baseBalance) /
+        Math.pow(10, 6),
+      suiBalance:
+        Number(payfricaAgentsDetail?.suiCoinBalance || 0) / Math.pow(10, 6),
+    });
+    setLimits({
+      ...limits,
+      minDeposit: Number(minDepositLimit || pminDepositLimit) / Math.pow(10, 6),
+      maxDeposit: Number(maxDepositLimit || pmaxDepositLimit) / Math.pow(10, 6),
+      minWithdrawal:
+        Number(minWithdrawLimit || pminWithdrawalLimit) / Math.pow(10, 6),
+      maxWithdrawal:
+        Number(maxWithdrawLimit || pmaxWithdrawalLimit) / Math.pow(10, 6),
+    });
+  }, [agentDetail, isOpen, payfricaAgentsDetail]);
 
   const handleChangeEvent = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
 
     setAgentAccount((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleLimitChangeEvent = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+
+    setLimits((prev) => ({ ...prev, [name]: value }));
   };
 
   const updateAgentAccount = async () => {
@@ -85,15 +158,124 @@ const Page = () => {
     }
   };
 
+  const updatePayfricaAgentAccount = async () => {
+    startTransaction(true);
+    try {
+      await payfrica.updatePayfricaAgentAccountDetails(
+        payfricaAgentsDetail?.id!,
+        {
+          accountBank: agentAccount.bank,
+          accountName: agentAccount.name,
+          accountNumber: agentAccount.accountNumber,
+        }
+      );
+
+      qc.invalidateQueries({ queryKey: ["agent-detail", id] });
+    } catch (error) {
+      console.log(error);
+    } finally {
+      startTransaction(false);
+    }
+  };
+
+  const setWithdrawalAndDepositsLimits = async () => {
+    startTransaction(true);
+    try {
+      let tx = new Transaction();
+
+      if (
+        Number(agentDetail?.maxDepositLimit) !== limits.maxDeposit ||
+        Number(agentDetail?.minDepositLimit) !== limits.minDeposit
+      ) {
+        tx.moveCall({
+          target: `${
+            q.get("type") === "payfrica-lite"
+              ? config.BRIDGE_PACKAGE_ID
+              : config.PAYFRICA_PACKAGE_ID
+          }::${
+            q.get("type") === "payfrica-lite" ? "bridge_agents" : "agents"
+          }::set_agent_deposit_limit`,
+          arguments: [
+            tx.object(
+              q.get("type") === "payfrica-lite"
+                ? config.BRIDGE_PUBLISHER_ID!
+                : config.PUBLISHER
+            ),
+            tx.object(agentDetail?.id! || payfricaAgentsDetail?.id || ""),
+            tx.pure.u64(limits.minDeposit * Math.pow(10, 6)),
+            tx.pure.u64(limits.maxDeposit * Math.pow(10, 6)),
+          ],
+          typeArguments:
+            q.get("type") === "payfrica-lite"
+              ? [
+                  payfricaAgentsDetail?.baseCoinType!,
+                  payfricaAgentsDetail?.suiCoinType!,
+                ]
+              : [agentDetail?.coinType!],
+        });
+      }
+
+      if (
+        Number(agentDetail?.maxWithdrawLimit) !== limits.maxWithdrawal ||
+        Number(agentDetail?.minWithdrawLimit) !== limits.minWithdrawal
+      ) {
+        tx.moveCall({
+          target: `${
+            q.get("type") === "payfrica-lite"
+              ? config.BRIDGE_PACKAGE_ID
+              : config.PAYFRICA_PACKAGE_ID
+          }::${
+            q.get("type") === "payfrica-lite" ? "bridge_agents" : "agents"
+          }::set_agent_withdrawal_limit`,
+          arguments: [
+            tx.object(
+              q.get("type") === "payfrica-lite"
+                ? config.BRIDGE_PUBLISHER_ID!
+                : config.PUBLISHER
+            ),
+            tx.object(agentDetail?.id! || payfricaAgentsDetail?.id || ""),
+            tx.pure.u64(limits.minWithdrawal * Math.pow(10, 6)),
+            tx.pure.u64(limits.maxWithdrawal * Math.pow(10, 6)),
+          ],
+          typeArguments:
+            q.get("type") === "payfrica-lite"
+              ? [
+                  payfricaAgentsDetail?.baseCoinType!,
+                  payfricaAgentsDetail?.suiCoinType!,
+                ]
+              : [agentDetail?.coinType!],
+        });
+      }
+
+      const txResult = await wallet.signAndExecuteTransaction({
+        transaction: tx!,
+      });
+
+      console.log(txResult);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      startTransaction(false);
+    }
+  };
+
   const updateAgentDetails = (
     <div className="space-y-3">
       <div className="flex flex-col gap-1">
         <label htmlFor="">Id</label>
-        <Input readOnly value={agentDetail?.id} className="h-11" />
+        <Input
+          value={agentDetail?.id || payfricaAgentsDetail?.id || ""}
+          readOnly
+          className="h-11"
+        />
       </div>
       <div className="flex flex-col gap-1">
         <label htmlFor="">Address</label>
-        <Input readOnly value={agentDetail?.addr} className="h-11" />
+        <Input
+          value={agentDetail?.addr || payfricaAgentsDetail?.addr || ""}
+          readOnly
+          className="h-11"
+        />
       </div>
       <div className="flex flex-col gap-1">
         <label htmlFor="">Account Number</label>
@@ -122,6 +304,59 @@ const Page = () => {
           className="h-11"
         />
       </div>
+      {q.get("type") === "payfrica-lite" && (
+        <Fragment>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="">Sui Coin Type</label>
+            <Input value={payfricaAgentsDetail?.suiCoinType} readOnly />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="">Base Coin Type</label>
+            <Input value={payfricaAgentsDetail?.baseCoinType} readOnly />
+          </div>
+        </Fragment>
+      )}
+    </div>
+  );
+
+  const setAgentLimit = (
+    <div className="space-y-3">
+      <div className="flex flex-col gap-1">
+        <label htmlFor="">Min Withdrawal</label>
+        <Input
+          name="minWithdrawal"
+          value={limits.minWithdrawal}
+          onChange={handleLimitChangeEvent}
+          className="h-11"
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label htmlFor="">Max Withdrawal</label>
+        <Input
+          name="maxWithdrawal"
+          value={limits.maxWithdrawal}
+          onChange={handleLimitChangeEvent}
+          className="h-11"
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label htmlFor="">Min Deposits</label>
+        <Input
+          onChange={handleLimitChangeEvent}
+          value={limits.minDeposit}
+          name="minDeposit"
+          className="h-11"
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label htmlFor="">Max Deposits</label>
+        <Input
+          value={limits.maxDeposit}
+          onChange={handleLimitChangeEvent}
+          name="maxDeposit"
+          className="h-11"
+        />
+      </div>
     </div>
   );
 
@@ -129,32 +364,86 @@ const Page = () => {
     try {
       const tx = new Transaction();
 
-      const clientRes = await payfrica.client.getCoins({
-        owner,
-        coinType: "0x" + agentDetail?.coinType,
-      });
+      const willChange = q.get("type") === "payfrica-lite";
 
-      const mergeRes = payfrica.handleMergeSplit(
-        tx,
-        clientRes?.data,
-        BigInt(agentAccount.balance * Math.pow(10, 6))
-      );
+      if (agentAccount.balance > 0) {
+        const clientRes = await payfrica.client.getCoins({
+          owner,
+          coinType:
+            "0x" +
+            (agentDetail?.coinType || payfricaAgentsDetail?.baseCoinType),
+        });
 
-      tx.moveCall({
-        target: `${config.PAYFRICA_PACKAGE_ID}::agents::add_agent_balance_admin`,
-        arguments: [
-          tx.object(config.PUBLISHER),
-          tx.object(config.PAYFRICA_AGENT_ID),
-          tx.object(agentDetail?.id!),
-          tx.object(mergeRes),
-          tx.object("0x6"),
-        ],
-        typeArguments: ["0x" + agentDetail?.coinType!],
-      });
+        const mergeRes = payfrica.handleMergeSplit(
+          tx,
+          clientRes?.data,
+          BigInt(agentAccount.balance * Math.pow(10, 6))
+        );
+
+        tx.moveCall({
+          target: `${
+            willChange ? config.BRIDGE_PACKAGE_ID : config.PAYFRICA_PACKAGE_ID
+          }::${willChange ? "bridge_agents" : "agents"}::add_${
+            willChange ? "agent_base_balance_admin" : "agent_balance_admin"
+          }`,
+          arguments: [
+            tx.object(
+              willChange ? config.BRIDGE_PUBLISHER_ID! : config.PUBLISHER
+            ),
+            tx.object(
+              willChange ? config.BRIDGE_AGENT_ID : config.PAYFRICA_AGENT_ID
+            ),
+            tx.object(agentDetail?.id! || payfricaAgentsDetail?.id!),
+            tx.object(mergeRes),
+            tx.object("0x6"),
+          ],
+          typeArguments: willChange
+            ? [
+                "0x" + payfricaAgentsDetail?.baseCoinType!,
+                "0x" + payfricaAgentsDetail?.suiCoinType!,
+              ]
+            : ["0x" + agentDetail?.coinType!],
+        });
+      }
+
+      if (willChange && agentAccount?.suiBalance > 0) {
+        const clientRes2 = await payfrica.client.getCoins({
+          owner,
+          coinType: "0x" + payfricaAgentsDetail?.suiCoinType,
+        });
+
+        console.log({
+          clientRes2,
+          a: payfricaAgentsDetail?.suiCoinType,
+          b: payfricaAgentsDetail?.baseCoinType,
+        });
+
+        const mergeRes2 = payfrica.handleMergeSplit(
+          tx,
+          clientRes2?.data,
+          BigInt(agentAccount.suiBalance * Math.pow(10, 6))
+        );
+
+        tx.moveCall({
+          target: `${config.BRIDGE_PACKAGE_ID}::bridge_agents::add_agent_sui_coin_balance_admin`,
+          arguments: [
+            tx.object(config.BRIDGE_PUBLISHER_ID!),
+            tx.object(config.BRIDGE_AGENT_ID),
+            tx.object(payfricaAgentsDetail?.id!),
+            tx.object(mergeRes2),
+            tx.object("0x6"),
+          ],
+          typeArguments: [
+            "0x" + payfricaAgentsDetail?.baseCoinType!,
+            "0x" + payfricaAgentsDetail?.suiCoinType!,
+          ],
+        });
+      }
 
       const txResult = await wallet.signAndExecuteTransaction({
         transaction: tx,
       });
+
       console.log(txResult);
     } catch (error) {
       console.log(error);
@@ -189,24 +478,48 @@ const Page = () => {
   return (
     <div>
       <Header
-        balance={Number(agentDetail?.balance) || 0}
+        balance={
+          Number(agentDetail?.balance || payfricaAgentsDetail?.baseBalance) || 0
+        }
         activeCards={[
           "balance",
           "total-transactions",
           "pending-transactions",
           "failed-transactions",
           "successful-transactions",
+          "sui-token-balance",
         ]}
         showActiveAgents={false}
         transactions={{
           completed:
-            Number(agentDetail?.totalSuccessfulWithdrawals || 0) +
-            Number(agentDetail?.totalSuccessfulDeposits || 0),
-          failed: Number(agentDetail?.totalUnsuccessfulDeposits) + 0,
+            Number(
+              agentDetail?.totalSuccessfulWithdrawals ||
+                payfricaAgentsDetail?.totalSuccessfulWithdrawals ||
+                0
+            ) +
+            Number(
+              agentDetail?.totalSuccessfulDeposits ||
+                payfricaAgentsDetail?.totalSuccessfulDeposits ||
+                0
+            ),
+          failed:
+            Number(
+              agentDetail?.totalUnsuccessfulDeposits ||
+                payfricaAgentsDetail?.totalUnsuccessfulDeposits
+            ) + 0,
           pending:
-            Number(agentDetail?.totalPendingDeposits) +
-            Number(agentDetail?.totalPendingWithdrawals),
+            Number(
+              agentDetail?.totalPendingDeposits ||
+                payfricaAgentsDetail?.totalPendingDeposits
+            ) +
+            Number(
+              agentDetail?.totalPendingWithdrawals ||
+                payfricaAgentsDetail?.totalPendingWithdrawals
+            ),
         }}
+        suiTokenBalance={
+          Number(payfricaAgentsDetail?.suiCoinBalance || 0) / Math.pow(10, 6)
+        }
         header={
           <Fragment>
             <div className="w-full flex items-center justify-between">
@@ -236,6 +549,7 @@ const Page = () => {
 
                     <div className="flex items-center gap-1 w-full">
                       <label className="w-[85%]" htmlFor="">
+                        Base Balance
                         <Input
                           value={agentAccount?.balance}
                           onChange={(e) => {
@@ -248,7 +562,7 @@ const Page = () => {
                           }}
                         />
                       </label>
-                      <div className="w-[15%] flex items-center gap-1">
+                      <div className="w-[15%] flex items-center gap-1 mt-6">
                         <Button
                           variant={
                             agentAccount?.type === "inc" ? "default" : "outline"
@@ -273,6 +587,52 @@ const Page = () => {
                         </Button>
                       </div>
                     </div>
+                    {q.get("type") === "payfrica-lite" && (
+                      <div className="flex items-center gap-1 w-full">
+                        <label className="w-[85%]" htmlFor="">
+                          Sui Coin Balance
+                          <Input
+                            value={agentAccount?.suiBalance}
+                            onChange={(e) => {
+                              if (typeof Number(e) !== "number") return;
+
+                              setAgentAccount({
+                                ...agentAccount,
+                                suiBalance: Number(e.target.value),
+                              });
+                            }}
+                          />
+                        </label>
+                        <div className="w-[15%] flex items-center gap-1 mt-6">
+                          <Button
+                            variant={
+                              agentAccount?.type2 === "inc"
+                                ? "default"
+                                : "outline"
+                            }
+                            onClick={() =>
+                              setAgentAccount({ ...agentAccount, type2: "inc" })
+                            }
+                            size="icon"
+                          >
+                            <Plus />
+                          </Button>
+                          <Button
+                            variant={
+                              agentAccount?.type2 === "dec"
+                                ? "default"
+                                : "outline"
+                            }
+                            onClick={() =>
+                              setAgentAccount({ ...agentAccount, type2: "dec" })
+                            }
+                            size="icon"
+                          >
+                            <Minus />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     <DialogFooter>
                       <DialogClose asChild>
                         <Button variant="outline">Close</Button>
@@ -310,7 +670,37 @@ const Page = () => {
                         <Button variant="outline">Close</Button>
                       </DialogClose>
                       <Button
-                        onClick={updateAgentAccount}
+                        onClick={() => {
+                          if (q.get("type") === "payfrica-lite") {
+                            updatePayfricaAgentAccount();
+                          } else {
+                            updateAgentAccount();
+                          }
+                        }}
+                        disabled={isPending || isLoading}
+                      >
+                        Save
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button size="icon" className="text-[#624BFF] rounded-sm">
+                      <Infinity />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Set Agent Limit</DialogTitle>
+                    </DialogHeader>
+                    <div>{setAgentLimit}</div>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Close</Button>
+                      </DialogClose>
+                      <Button
+                        onClick={setWithdrawalAndDepositsLimits}
                         disabled={isPending || isLoading}
                       >
                         Save
@@ -329,23 +719,162 @@ const Page = () => {
               <CardTitle className="text-2xl">All Transactions</CardTitle>
             </CardHeader>
             <CardContent className="w-full">
-              <Table className="w-full">
-                <TableHeader className="w-full bg-gray-200">
-                  <TableRow className="hover:bg-gray-200">
-                    <TableHead className="text-accent">Time</TableHead>
-                    <TableHead className="text-accent">ID</TableHead>
-                    <TableHead className="text-accent">Amount</TableHead>
-                    <TableHead className="text-accent">Type</TableHead>
-                    <TableHead className="text-accent">Status</TableHead>
-                    <TableHead className="text-accent">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {transactions.map((transaction) => (
-                    <AgentTransaction key={transaction.id} {...transaction} />
-                  ))}
-                </TableBody>
-              </Table>
+              {q.get("type") === "payfrica" && (
+                <Table className="w-full">
+                  <TableHeader className="w-full bg-gray-200">
+                    <TableRow className="hover:bg-gray-200">
+                      <TableHead className="text-accent">Time</TableHead>
+                      <TableHead className="text-accent">ID</TableHead>
+                      <TableHead className="text-accent">Amount</TableHead>
+                      <TableHead className="text-accent">Type</TableHead>
+                      <TableHead className="text-accent">Status</TableHead>
+                      <TableHead className="text-accent">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {transactions.map((transaction) => (
+                      <AgentTransaction key={transaction.id} {...transaction} />
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+              {q.get("type") === "payfrica-lite" && (
+                <Table className="w-full">
+                  <TableHeader className="w-full bg-gray-200">
+                    <TableRow className="hover:bg-gray-200">
+                      <TableHead className="text-accent">Time</TableHead>
+                      <TableHead className="text-accent">ID</TableHead>
+                      <TableHead className="text-accent">User Addr</TableHead>
+                      <TableHead className="text-accent">
+                        Input Amount
+                      </TableHead>
+                      <TableHead className="text-accent">
+                        Output Amount
+                      </TableHead>
+                      <TableHead className="text-accent">
+                        Input Coin Type
+                      </TableHead>
+                      <TableHead className="text-accent">
+                        Output Coin Type
+                      </TableHead>
+                      <TableHead className="text-accent">Status</TableHead>
+                      <TableHead className="text-accent">Comment</TableHead>
+                      <TableHead className="text-accent">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {payfriaAgentTransactions.map((transaction) => (
+                      <TableRow
+                        key={transaction.id}
+                        className="hover:bg-gray-200 h-14 cursor-pointer"
+                      >
+                        <TableCell className="font-medium">
+                          {format(transaction.requestTime, "PPP")}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          <Link
+                            target="__blank"
+                            href={`https://testnet.suivision.xyz/object/${transaction.id}`}
+                            className=" hover:underline text-purple-500"
+                          >
+                            {payfrica.truncateString(transaction.id)}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {payfrica.truncateString(transaction.user)}{" "}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {transaction.type === "deposit"
+                            ? transaction.inputAmount
+                            : transaction.outputAmount}{" "}
+                        </TableCell>
+
+                        <TableCell className="font-medium">
+                          {transaction.type === "deposit"
+                            ? transaction.outputAmount
+                            : transaction.inputAmount}{" "}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {transaction.type === "deposit"
+                            ? transaction.inputCoinType.split("::").pop()
+                            : transaction.outputCoinType.split("::").pop()}{" "}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {transaction.type === "deposit"
+                            ? transaction.outputCoinType.split("::").pop()
+                            : transaction.inputCoinType.split("::").pop()}{" "}
+                        </TableCell>
+                        <TableCell>{transaction.status}</TableCell>
+                        <TableCell className="font-medium">
+                          {transaction.comment}{" "}
+                        </TableCell>
+                        <TableCell
+                          className={cn(
+                            "font-medium capitalize",
+                            transaction.status === "Completed" &&
+                              "text-green-600",
+                            transaction.status === "Cancelled" &&
+                              "text-destructive",
+                            transaction.status === "Pending" &&
+                              "text-yellow-500"
+                          )}
+                        >
+                          {transaction.status}
+                        </TableCell>
+
+                        {/*<TableCell className="space-x-2 font-medium">
+                          {transaction.status !== "PENDING" ? (
+                            <p
+                              className={cn(
+                                "capitalize text-destructive font-bold",
+                                transaction.status === "COMPLETED" &&
+                                  "text-green-600",
+                                transaction.status === "CANCELLED" &&
+                                  "text-destructive"
+                              )}
+                            >
+                              {transaction.status}
+                            </p>
+                          ) : (
+                            !isAdmin(wallet.address) && (
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  disabled={isPending}
+                                  onClick={() =>
+                                    approveOrDecline(
+                                      transaction.type === "deposit"
+                                        ? "approve_deposits"
+                                        : "approve_withdrawal"
+                                    )
+                                  }
+                                  className={cn(
+                                    "capitalize h-8 cursor-pointer",
+                                    "bg-[#0BF526] hover:bg-[#0BF526]/80"
+                                  )}
+                                >
+                                  APPROVE
+                                </Button>
+                                <Button
+                                  disabled={isPending}
+                                  onClick={() =>
+                                    approveOrDecline("cancel_deposits")
+                                  }
+                                  className={cn(
+                                    "capitalize h-8",
+                                    "bg-[#F5A70B] hover:bg-[#F5A70B]/80"
+                                  )}
+                                >
+                                  DECLINE
+                                </Button>
+                              </div>
+                            )
+                          )}
+                        </TableCell>*/}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </div>

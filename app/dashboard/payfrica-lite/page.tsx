@@ -1,7 +1,8 @@
-import Agent from "@/components/agent";
+"use client";
+
+import AgentConfig from "@/components/agent-config";
 import { DashboradNavBar } from "@/components/dashboard-navbar";
 import Header from "@/components/header";
-import Transaction from "@/components/transaction";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,34 +13,103 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { allTransactions } from "@/lib/constants";
-import { isAdmin, payfrica } from "@/lib/utils";
+import { config, isAdmin, payfrica, splitTokenString } from "@/lib/utils";
+import { useWallet } from "@suiet/wallet-kit";
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
-import React, { Fragment } from "react";
+import React, { Fragment, useEffect, useState } from "react";
+import { AddAgent } from "../overview/page";
+import { Transaction as Trans } from "@mysten/sui/transactions";
 
 const Page = () => {
-  const { data: agents = [] } = useQuery({
-    queryKey: ["get-agents"],
-    queryFn: () => payfrica.getAllAgents(),
+  const { address = "", signAndExecuteTransaction } = useWallet();
+  const [agentTypes, setAgentTypes] = useState<
+    { fullType: string; shortName: string }[]
+  >([]);
+  const [fullCoinType, setFullCoinType] = useState("");
+  const [isPending, startTransaction] = useState(false);
+  const [addr, setAddr] = useState("");
+
+  const { isLoading, data, error } = useQuery({
+    queryKey: ["agents-request"],
+    queryFn: () => payfrica.getPayfricaLiteAgentsRequest(address),
   });
+
+  const { data: payfricaAgents = [] } = useQuery({
+    queryKey: [""],
+    queryFn: () => payfrica.getAllAPayfricaAgents(),
+  });
+
+  const { data: _agentTypes } = useQuery({
+    queryKey: ["get-all-agent-types"],
+    queryFn: async () => await payfrica.getAllAgentTypes(),
+  });
+
+  useEffect(() => {
+    if (!_agentTypes?.length) return;
+
+    _agentTypes.forEach((type) => {
+      const { firstFullType, secondFullType, shortName } =
+        splitTokenString(type);
+
+      setAgentTypes((prev) => [
+        ...prev,
+        {
+          fullType: firstFullType + "-" + secondFullType,
+          shortName,
+        },
+      ]);
+    });
+  }, [_agentTypes]);
+
+  const addAgent = async () => {
+    const [first, second] = fullCoinType.split("-");
+
+    try {
+      startTransaction(true);
+      const tx = new Trans();
+      tx.moveCall({
+        target: `${config.BRIDGE_PACKAGE_ID}::bridge_agents::create_agent`,
+        arguments: [
+          tx.object(config.BRIDGE_PUBLISHER_ID!),
+          tx.object(config.BRIDGE_AGENT_ID),
+          tx.pure.address(addr),
+        ],
+        typeArguments: [first, second],
+      });
+
+      const txResult = await signAndExecuteTransaction({
+        transaction: tx,
+      });
+    } catch (error) {
+      console.log(error);
+    } finally {
+      startTransaction(false);
+    }
+  };
 
   return (
     <div className="w-full">
       <DashboradNavBar />
-      {/* This is the header of the dashboard */}
       <Header
         type="payfrica-lite"
         header={
           <Fragment>
             <div className="w-full flex items-center justify-between">
               <h2 className="text-2xl font-bold">Dashboard</h2>
-              {isAdmin("2") && (
-                <Link href="/dashboard/transactions">
+              {isAdmin(address) && (
+                <AddAgent
+                  onSave={addAgent}
+                  isPending={isPending}
+                  addr={addr}
+                  setAddr={setAddr}
+                  agentTypes={agentTypes}
+                  setFullCoinType={setFullCoinType}
+                  fullCoinType={fullCoinType}
+                >
                   <Button className="text-[#624BFF] rounded-sm">
-                    View All Transactions
+                    Add Agents
                   </Button>
-                </Link>
+                </AddAgent>
               )}
             </div>
           </Fragment>
@@ -47,7 +117,7 @@ const Page = () => {
       >
         <div className="w-full max-w-7xl mx-auto md:px-0 px-3 mt-10 space-y-10">
           {/* TODO: add another amount i.e output amount */}
-          {isAdmin("2") && (
+          {isAdmin(address) && (
             <Card className="bg-accent-foreground rounded-sm text-accent">
               <CardHeader className="flex items-center flex-row justify-between">
                 <CardTitle className="text-2xl">Agents</CardTitle>
@@ -56,17 +126,21 @@ const Page = () => {
                 <Table className="w-full">
                   <TableHeader className="w-full bg-gray-200">
                     <TableRow className="hover:bg-gray-200">
-                      <TableHead className="text-accent">Time</TableHead>
+                      <TableHead className="text-accent">
+                        Sui Coin Type
+                      </TableHead>
                       <TableHead className="text-accent">Name</TableHead>
-                      <TableHead className="text-accent">Token</TableHead>
+                      <TableHead className="text-accent">
+                        Base Token Type
+                      </TableHead>
                       <TableHead className="text-accent">Agent</TableHead>
-                      <TableHead className="text-accent">Status</TableHead>
+                      <TableHead className="text-accent">Address</TableHead>
                       <TableHead className="text-accent">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {agents.map((agent, idx) => (
-                      <Agent key={idx} {...agent} />
+                    {payfricaAgents.map((agent, idx) => (
+                      <AgentConfig key={idx} {...agent} />
                     ))}
                   </TableBody>
                 </Table>
@@ -74,7 +148,7 @@ const Page = () => {
             </Card>
           )}
 
-          <Card className="bg-accent-foreground rounded-sm text-accent">
+          {/*<Card className="bg-accent-foreground rounded-sm text-accent">
             <CardHeader className="flex items-center flex-row justify-between">
               <CardTitle className="text-2xl">All Transactions</CardTitle>
               <Input
@@ -103,7 +177,7 @@ const Page = () => {
                 </TableBody>
               </Table>
             </CardContent>
-          </Card>
+          </Card>*/}
         </div>
       </Header>
     </div>

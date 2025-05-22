@@ -1,9 +1,7 @@
 "use client";
 
 import React from "react";
-import { Input } from "./ui/input";
 import { Bell, MenuIcon } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useSidebar } from "./ui/sidebar";
 import { ConnectWallet } from "./connect-wallet";
 

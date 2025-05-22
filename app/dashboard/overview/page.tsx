@@ -6,7 +6,23 @@ import { DashboradNavBar } from "@/components/dashboard-navbar";
 import Header from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -14,36 +30,39 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { isAdmin, payfrica } from "@/lib/utils";
+import { config, isAdmin, payfrica } from "@/lib/utils";
+import { Transaction } from "@mysten/sui/transactions";
 import { useWallet } from "@suiet/wallet-kit";
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import React, { Fragment } from "react";
+import React, { FC, Fragment, ReactNode, useEffect, useState } from "react";
 
 const Page = () => {
-  const { address, connecting } = useWallet();
+  const { address, connecting, signAndExecuteTransaction } = useWallet();
+  const [isPending, startTransaction] = useState(false);
+  const [addr, setAddr] = useState("");
+  const [fullCoinType, setFullCoinType] = useState("");
+  const [agentTypes, setAgentTypes] = useState<
+    { fullType: string; shortName: string }[]
+  >([]);
 
   const { data: transactions = [] } = useQuery({
     queryKey: ["all-transactions", address],
     queryFn: () => payfrica.getAllTransactions(address!),
-    enabled: Boolean(address && !connecting),
+    enabled: Boolean(address && !connecting && !isAdmin(address)),
     refetchInterval: 5000,
   });
 
   const { data } = useQuery({
     queryKey: ["agents"],
     queryFn: () => payfrica.getAgentsDetails(address!),
-    enabled: Boolean(address && !connecting),
+    enabled: Boolean(address && !connecting && !isAdmin(address)),
   });
 
   const { data: agents = [], isLoading } = useQuery({
     queryKey: ["all-agents"],
     queryFn: () => payfrica.getAllAgents(),
-    enabled: isAdmin("2"),
+    enabled: isAdmin(address),
   });
-
-  console.log({ agents, isLoading });
 
   const totalPendingTransactions = transactions.filter(
     (transaction) => transaction.status === "PENDING"
@@ -53,9 +72,47 @@ const Page = () => {
     (transaction) => transaction.status === "COMPLETED"
   );
 
-  const q = useSearchParams();
+  const { data: _agentTypes = [] } = useQuery({
+    queryKey: ["valid-agent-types"],
+    queryFn: () => payfrica.getValidAgentTypes(),
+  });
 
-  const agentId = q.get("agent");
+  useEffect(() => {
+    if (!_agentTypes?.length) return;
+
+    setAgentTypes([]);
+
+    _agentTypes.forEach((agentType) => {
+      setAgentTypes((prev) => [
+        ...prev,
+        { fullType: agentType.fullType, shortName: agentType.shortName },
+      ]);
+    });
+  }, [_agentTypes]);
+
+  const addAgent = async () => {
+    try {
+      startTransaction(true);
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${config.PAYFRICA_PACKAGE_ID}::agents::create_agent`,
+        arguments: [
+          tx.object(config.PUBLISHER),
+          tx.object(config.PAYFRICA_AGENT_ID),
+          tx.pure.address(addr),
+        ],
+        typeArguments: [fullCoinType],
+      });
+
+      const txResult = await signAndExecuteTransaction({
+        transaction: tx,
+      });
+    } catch (error) {
+      console.log(error);
+    } finally {
+      startTransaction(false);
+    }
+  };
 
   return (
     <div className="w-full">
@@ -73,11 +130,19 @@ const Page = () => {
             <div className="w-full flex items-center justify-between">
               <h2 className="text-2xl font-bold">Dashboard</h2>
               {isAdmin(address) && (
-                <Link href="/dashboard/transactions">
+                <AddAgent
+                  fullCoinType={fullCoinType}
+                  setFullCoinType={setFullCoinType}
+                  addr={addr}
+                  setAddr={setAddr}
+                  isPending={isPending}
+                  onSave={addAgent}
+                  agentTypes={agentTypes}
+                >
                   <Button className="text-[#624BFF] rounded-sm">
-                    View All Transactions
+                    Add Agent
                   </Button>
-                </Link>
+                </AddAgent>
               )}
             </div>
           </Fragment>
@@ -113,7 +178,7 @@ const Page = () => {
             </Card>
           )}
 
-          {(isAdmin(address) || !!agentId) && (
+          {!isAdmin(address) && (
             <Card className="bg-accent-foreground rounded-sm text-accent">
               <CardHeader className="flex items-center flex-row justify-between">
                 <CardTitle className="text-2xl">All Transactions</CardTitle>
@@ -146,6 +211,72 @@ const Page = () => {
         </div>
       </Header>
     </div>
+  );
+};
+
+export const AddAgent: FC<{
+  children: ReactNode;
+  agentTypes: { fullType: string; shortName: string }[];
+  onSave: () => void;
+  isPending: boolean;
+  setAddr: React.Dispatch<React.SetStateAction<string>>;
+  setFullCoinType: React.Dispatch<React.SetStateAction<string>>;
+  fullCoinType: string;
+  addr: string;
+}> = ({
+  children,
+  agentTypes,
+  onSave,
+  isPending,
+  addr,
+  setAddr,
+  setFullCoinType,
+  fullCoinType,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Agent</DialogTitle>
+        </DialogHeader>
+        <div>
+          <form action="" className="flex flex-col gap-2">
+            <label className="space-y-1" htmlFor="">
+              Address
+              <Input value={addr} onChange={(e) => setAddr(e.target.value)} />
+            </label>
+            <label className="space-y-1" htmlFor="">
+              Agent Type
+              <Select
+                value={fullCoinType}
+                onValueChange={(e) => setFullCoinType(e)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Agent Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {agentTypes?.map((agentType, idx) => (
+                    <SelectItem key={idx} value={agentType.fullType}>
+                      {agentType.shortName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+          </form>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button disabled={isPending} onClick={onSave} size="lg">
+              Save
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

@@ -5,7 +5,13 @@ import axios, { AxiosInstance } from "axios";
 import { Transaction } from "@mysten/sui/transactions";
 import { getFullnodeUrl, SuiClient } from "@mysten/sui/client";
 import queryString from "query-string";
-import { IAgent, IAgentDetails, IAgentTransaction } from "@/types";
+import {
+  IAgent,
+  IAgentConfig,
+  IAgentDetails,
+  IAgentTransaction,
+  IPayfricaAgentTransaction,
+} from "@/types";
 
 export const isAdmin = (id = "1") => {
   return id === AGENTID;
@@ -21,6 +27,9 @@ export const config = {
   PAYFRICA_AGENT_ID: process.env.NEXT_PUBLIC_PAYFRICA_AGENT_ID!,
   PAYFRICA_PACKAGE_ID: process.env.NEXT_PUBLIC_PACKAGE_ID!,
   PUBLISHER: process.env.NEXT_PUBLIC_PUBLISHER!,
+  BRIDGE_PACKAGE_ID: process.env.NEXT_PUBLIC_BRIDGE_PACKAGE_ID!,
+  BRIDGE_AGENT_ID: process.env.NEXT_PUBLIC_BRIDGE_AGENT_ID!,
+  BRIDGE_PUBLISHER_ID: process.env.NEXT_PUBLIC_BRIDGE_PUBLISHER,
 };
 
 class Payfrica {
@@ -28,6 +37,9 @@ class Payfrica {
   private payfricaApi: AxiosInstance = axios.create({
     baseURL: "https://payfrica-backend.onrender.com",
     withCredentials: true,
+  });
+  private payfricaBridgeApi: AxiosInstance = axios.create({
+    baseURL: `https://payfrica-bridge-backend.onrender.com`,
   });
   client: SuiClient;
 
@@ -88,7 +100,79 @@ class Payfrica {
     return res.data;
   }
 
+  async updatePayfricaAgentAccountDetails(
+    id: string,
+    data: { accountName: string; accountNumber: string; accountBank: string }
+  ) {
+    const res = await this.payfricaBridgeApi.patch(
+      `/agents/${id}/account`,
+      data
+    );
+
+    return res.data;
+  }
+
+  async getValidAgentTypes() {
+    interface IRes {
+      fullType: string;
+      shortName: string;
+    }
+
+    const res = await this.payfricaApi.get<IRes[]>(`/agent/valid-types/`);
+
+    return res.data;
+  }
+
+  async getPayfricaLiteAgentsRequest(addr: string) {
+    const res = await this.payfricaBridgeApi.get<IPayfricaAgentTransaction[]>(
+      `/agents/requests-by-address/${addr}`
+    );
+
+    return res.data;
+  }
+
+  async getAllAPayfricaAgents() {
+    const res = await this.payfricaBridgeApi.get<IAgentConfig[]>(`/agents/`);
+
+    return res.data;
+  }
+
+  async getAllAgentTypes() {
+    const res = await this.payfricaBridgeApi.get<string[]>(
+      `/agents/all-agent-types`
+    );
+    return res.data;
+  }
+
+  async getPayfricaLiteAgentDetail(addr = "") {
+    const res = await this.payfricaBridgeApi.get<IAgentConfig>(
+      `/agents/wallet/${addr}`
+    );
+    return res.data;
+  }
+
   formatAmount(amount: number, currency: string) {}
+}
+
+export function splitTokenString(input: string) {
+  if (!input) return { shortName: "", firstFullType: "", secondFullType: "" };
+  const parts = input.split("::");
+
+  const firstThreeLetters = parts[2].slice(0, 4);
+
+  const firstFullType =
+    "0x" + parts[0] + "::" + parts[1] + "::" + firstThreeLetters;
+
+  const secondFullType =
+    "0x" + parts[2].slice(4) + "::" + parts[3] + "::" + parts[4];
+
+  const shortName = parts[1]?.toUpperCase() + "/" + parts[3]?.toUpperCase();
+
+  return {
+    firstFullType,
+    secondFullType,
+    shortName,
+  };
 }
 
 export const payfrica = new Payfrica();
